@@ -1,0 +1,51 @@
+{% extends 'base.html' %}
+{% block title %}Public Profile Settings{% endblock %}
+{% block content %}
+<h1 style="font-size:1rem;margin:0 0 1rem;">Public Profile Settings</h1>
+<form method="post" class="stack" style="--gap:1.2rem;">
+  <div class="surface" style="padding:1rem;display:flex;flex-direction:column;gap:.75rem;">
+    <label style="display:flex;align-items:center;gap:.6rem;font-size:.8rem;">
+      <input type="checkbox" name="public_enabled" {% if user.public_enabled %}checked{% endif %}> Enable Public Profile
+    </label>
+    <div class="stack" style="--gap:.3rem;">
+      <label style="font-size:.6rem;letter-spacing:1px;text-transform:uppercase;opacity:.6;">Slug (URL)</label>
+      <input name="public_slug" value="{{ user.public_slug or '' }}" placeholder="your-name" style="padding:.5rem .6rem;background:#1d2738;border:1px solid #2f4761;border-radius:6px;color:var(--text-color);">
+  <div class="text-dim" style="font-size:.6rem;">URL will be <code>/u/&lt;slug&gt;</code> (allowed: a-z 0-9 _ -). Leave blank to auto-generate.</div>
+  <div id="slugPreview" style="font-size:.55rem;opacity:.65;"></div>
+    </div>
+  </div>
+  <div class="surface" style="padding:1rem;">
+    <div style="font-size:.65rem;letter-spacing:1px;text-transform:uppercase;opacity:.7;margin:0 0 .75rem;">Showcase Items (max 12)</div>
+    <div class="row" style="flex-wrap:wrap;gap:.6rem;">
+      {% for it in inventory %}
+        <label class="surface" style="padding:.5rem .55rem;display:flex;flex-direction:column;align-items:center;gap:.4rem;flex:0 0 110px;cursor:pointer;position:relative;">
+          <input type="checkbox" name="showcase_item" value="{{ it.item_id }}" {% if it.item_id in selected_ids %}checked{% endif %} style="position:absolute;top:.4rem;left:.4rem;transform:scale(1.1);">
+          {% if it.image %}<img src="/{{ it.image.lstrip('/') }}" alt="{{ it.name }}" style="width:64px;height:64px;object-fit:cover;border-radius:8px;">{% else %}<div style="width:64px;height:64px;border:1px dashed #2f4761;border-radius:8px;"></div>{% endif %}
+          <div style="font-size:.55rem;font-weight:600;text-align:center;line-height:1.1;">{{ it.name }}</div>
+          <div style="font-size:.5rem;opacity:.6;">x{{ it.quantity }}</div>
+        </label>
+      {% endfor %}
+    </div>
+  </div>
+  <button class="btn btn-primary" style="align-self:flex-start;">Save</button>
+</form>
+<script>
+const slugInput = document.querySelector('input[name="public_slug"]');
+const preview = document.getElementById('slugPreview');
+function randSuggestion(){
+  const chars='abcdefghijklmnopqrstuvwxyz0123456789';
+  let s=''; for (let i=0;i<8;i++) s+=chars[Math.floor(Math.random()*chars.length)];
+  return s;
+}
+function updatePreview(){
+  const v = slugInput.value.trim();
+  if (v) {
+    preview.textContent = 'Preview: /u/' + v;
+  } else {
+    preview.textContent = 'Will auto-generate (example: /u/' + randSuggestion() + ')';
+  }
+}
+slugInput.addEventListener('input', updatePreview);
+updatePreview();
+</script>
+{% endblock %}

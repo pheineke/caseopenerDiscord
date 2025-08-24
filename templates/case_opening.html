@@ -1,0 +1,232 @@
+{% extends 'base.html' %}
+{% block title %}Opening {{ case.name }}{% endblock %}
+{% block nav_actions %}
+	<a class="btn" href="{{ url_for('case_selector') }}">Back</a>
+{% endblock %}
+{% block content %}
+<div id="spinView" class="stack" style="--gap:1.5rem;">
+	<h1 style="margin:0;font-size:1.15rem;">Opening: {{ case.name }}</h1>
+	<div id="reelWrapper" class="reel-wrapper" style="position:relative;">
+		<div id="indicator" style="position:absolute; top:0; bottom:0; width:2px; left:50%; transform:translateX(-50%); background:var(--color-primary); box-shadow:0 0 6px var(--color-primary);"></div>
+		<div id="reelTrack" class="reel-track" style="animation:none; will-change:transform;"></div>
+	</div>
+	<div class="row" style="gap:1rem;">
+		<div id="result" class="text-dim" style="font-size:.8rem;"></div>
+	</div>
+</div>
+
+	<!-- Full-screen win screen (separate view) -->
+	<div id="winScreen" class="win-screen hidden">
+		<div class="win-screen-inner">
+			<div class="win-card" id="winCard">
+				<div class="win-img-wrapper"><img id="winImage" alt="" draggable="false"></div>
+				<div class="win-meta">
+					<div id="winName" class="win-name"></div>
+					<div id="winRarity" class="win-rarity"></div>
+					<div id="winValue" class="win-value"></div>
+				</div>
+			</div>
+			<div class="win-actions">
+				<button class="btn btn-primary" id="spinAgainBtn">Open Another</button>
+				<a class="btn" href="{{ url_for('case_selector') }}">Back to Cases</a>
+			</div>
+		</div>
+	</div>
+
+<script>
+// Auto-spin implementation (button removed per TODO)
+const spinBtn = document.getElementById('spinBtn'); // may be null now
+const reelTrack = document.getElementById('reelTrack');
+const resultEl = document.getElementById('result');
+let spinning = false;
+
+function rarityClass(r) {
+	return 'rarity-' + (r || 'common');
+}
+
+function buildReel(reel, stopIndex) {
+	reelTrack.innerHTML = '';
+	for (let i=0;i<reel.length;i++) {
+		const it = reel[i];
+		const div = document.createElement('div');
+		div.className = 'reel-item ' + rarityClass(it.rarity) + (i===stopIndex ? ' target' : '');
+		const imgPath = it.image.startsWith('/') ? it.image : '/' + it.image;
+		div.innerHTML = `<img src="${imgPath}" alt="${it.name}" style="width:72px;height:72px;object-fit:cover;border-radius:8px;margin-bottom:.5rem;">`+
+										`<div style="font-size:.6rem;font-weight:600;">${it.name}</div>`+
+										`<div style="font-size:.55rem;opacity:.7;">${it.rarity||''}</div>`;
+		reelTrack.appendChild(div);
+	}
+}
+
+async function spin() {
+	if (spinning) return;
+	spinning = true;
+	resultEl.textContent = 'Spinning...';
+	if (spinBtn) spinBtn.disabled = true;
+	try {
+		const res = await fetch(`{{ url_for('api_spin', case_id=case.id) }}`, {method:'POST'});
+		const data = await res.json();
+		if (!res.ok) { throw new Error(data.error || 'spin_failed'); }
+		buildReel(data.reel, data.stopIndex);
+		// Reset transform so bounding boxes are accurate for new reel
+		reelTrack.style.transition = 'none';
+		reelTrack.style.transform = 'translateX(0px)';
+		// Force reflow
+		void reelTrack.offsetWidth;
+		// Compute translate distance so that winning item centers under indicator.
+		requestAnimationFrame(()=>{
+			const items = Array.from(reelTrack.children);
+			if (!items.length) return;
+			const target = items[data.stopIndex];
+			const wrapper = document.getElementById('reelWrapper');
+			const wrapperRect = wrapper.getBoundingClientRect();
+			const targetRect = target.getBoundingClientRect();
+			const targetCenter = targetRect.left + targetRect.width/2;
+			const wrapperCenter = wrapperRect.left + wrapperRect.width/2;
+			const baseDelta = targetCenter - wrapperCenter; // distance we need to shift LEFT (positive means target is to the right)
+			const duration = 4600; // slightly shorter since no reverse phase
+			const start = performance.now();
+			function easeOutCubic(p){ return 1 - Math.pow(1-p,3); }
+			function animate(now){
+				const raw = (now - start)/duration;
+				const p = Math.min(1, raw);
+				const eased = easeOutCubic(p);
+				// Direct single-phase deceleration towards target (no overshoot)
+				let x = -baseDelta * eased;
+				// Optional subtle micro-jitter near end WITHOUT crossing target
+				if (p > 0.9 && p < 1) {
+					const remain = 1 - p;
+					const jitterAmp = Math.min(4, Math.abs(baseDelta)*0.015) * remain; // scales with distance but capped
+					x += Math.sin(p*90) * jitterAmp; // small oscillation while still approaching
+				}
+				reelTrack.style.transform = `translateX(${x}px)`;
+				if (p < 1) {
+					requestAnimationFrame(animate);
+				} else {
+					// Snap to exact alignment to remove any residual subpixel error
+					reelTrack.style.transform = `translateX(${-baseDelta}px)`;
+					target.classList.add('reel-win');
+					spinning = false;
+					resultEl.innerHTML = `<span style='color:var(--color-primary-accent)'>Won:</span> ${data.win.name} <span style='opacity:.6;'>(${data.win.rarity})</span>`;
+					if (spinBtn) spinBtn.disabled = false;
+					showWin(data.win);
+				}
+			}
+			requestAnimationFrame(animate);
+		});
+	} catch (e) {
+		resultEl.textContent = 'Error: ' + e.message;
+		spinning = false;
+		if (spinBtn) spinBtn.disabled = false;
+	}
+}
+
+// Auto trigger first spin when page loads
+window.addEventListener('load', ()=>{
+	spin();
+});
+
+// 3D WIN SCREEN ----------------------------------
+const spinView = document.getElementById('spinView');
+const winScreen = document.getElementById('winScreen');
+const winCard = document.getElementById('winCard');
+const winImage = document.getElementById('winImage');
+const winName = document.getElementById('winName');
+const winRarity = document.getElementById('winRarity');
+const winValue = document.getElementById('winValue');
+const spinAgainBtn = document.getElementById('spinAgainBtn');
+
+function showWin(win){
+	winImage.src = win.image.startsWith('/') ? win.image : '/' + win.image;
+	winName.textContent = win.name;
+	winRarity.textContent = (win.rarity || '').toUpperCase();
+	winValue.textContent = '$ ' + win.value;
+	spinView.classList.add('hidden');
+	winScreen.classList.remove('hidden');
+	requestAnimationFrame(()=> winCard.classList.add('entered'));
+}
+
+function resetWinScreen(){
+	winCard.classList.remove('entered');
+	winScreen.classList.add('hidden');
+	spinView.classList.remove('hidden');
+	// Prepare reel for a fresh spin: clear old items & show lightweight placeholders
+	reelTrack.innerHTML = '';
+	reelTrack.style.transform = 'translateX(0px)';
+	for (let i=0;i<12;i++) {
+		const d = document.createElement('div');
+		d.className='reel-item rarity-common';
+		d.style.opacity = 0.1;
+		d.innerHTML = `<div style="width:72px;height:72px;border:1px dashed #2f4761;border-radius:8px;"></div>`;
+		reelTrack.appendChild(d);
+	}
+}
+
+spinAgainBtn.addEventListener('click', ()=>{ resetWinScreen(); spin(); });
+
+// Tilt effect
+let tiltRAF = null;
+winCard.addEventListener('pointermove', (e)=>{
+	const rect = winCard.getBoundingClientRect();
+	const x = (e.clientX - rect.left)/rect.width; // 0..1
+	const y = (e.clientY - rect.top)/rect.height; // 0..1
+	const rotY = (x - 0.5) * 24; // deg
+	const rotX = (0.5 - y) * 18; // deg
+	if (tiltRAF) cancelAnimationFrame(tiltRAF);
+	tiltRAF = requestAnimationFrame(()=>{
+		winCard.style.setProperty('--tiltX', rotX.toFixed(2)+'deg');
+		winCard.style.setProperty('--tiltY', rotY.toFixed(2)+'deg');
+	});
+});
+['pointerleave','pointerup'].forEach(evt=>winCard.addEventListener(evt, ()=>{
+	winCard.style.setProperty('--tiltX', '0deg');
+	winCard.style.setProperty('--tiltY', '0deg');
+}));
+
+// Initial placeholder so user sees reel area
+(function placeholder(){
+	for (let i=0;i<20;i++) {
+		const d = document.createElement('div');
+		d.className='reel-item rarity-common';
+		d.style.opacity = 0.15;
+		d.innerHTML = `<div style="width:72px;height:72px;border:1px dashed #2f4761;border-radius:8px;"></div>`;
+		reelTrack.appendChild(d);
+	}
+})();
+</script>
+
+<style>
+/* Rarity color accents on reel items */
+.reel-item { position:relative; flex:0 0 140px; height:140px; display:flex; flex-direction:column; align-items:center; justify-content:center; background:linear-gradient(140deg,#223041,#141e2c); border-radius:8px; margin:0; }
+.reel-track { display:flex; gap:.75rem; }
+.reel-wrapper { overflow:hidden; }
+.reel-win { box-shadow:0 0 0 2px var(--color-primary-accent),0 0 14px -2px var(--color-primary-accent); }
+
+/* WIN VIEWER */
+.win-screen { position:fixed; inset:0; background:rgba(10,14,20,.86); backdrop-filter:blur(12px) saturate(160%); z-index:120; display:flex; align-items:center; justify-content:center; padding:2rem 1rem; overflow:auto; }
+.win-screen.hidden { display:none !important; }
+.win-screen-inner { display:flex; flex-direction:column; gap:1.3rem; align-items:center; }
+.win-card { width:min(420px,100%); background:linear-gradient(145deg,#1d2738,#263347); border:1px solid #2f4761; border-radius:18px; padding:1.35rem 1.35rem 1.55rem; position:relative; box-shadow:0 10px 28px -12px rgba(0,0,0,.6); transform-style:preserve-3d; perspective:1000px; transition: box-shadow .4s ease, transform .6s cubic-bezier(.25,.9,.3,1.4); --tiltX:0deg; --tiltY:0deg; }
+.win-card.entered { animation: win-pop .6s ease; }
+.win-card:hover { box-shadow:0 16px 42px -14px rgba(0,0,0,.75),0 0 0 1px rgba(63,169,245,.25); }
+.win-card::before { content:''; position:absolute; inset:0; border-radius:inherit; background:radial-gradient(circle at 30% 20%, rgba(63,169,245,.18), transparent 60%); pointer-events:none; }
+.win-card { transform: rotateX(var(--tiltX)) rotateY(var(--tiltY)); }
+.win-img-wrapper { display:flex; align-items:center; justify-content:center; margin:0 0 1rem; }
+.win-img-wrapper img { width:180px; height:180px; object-fit:contain; filter:drop-shadow(0 4px 12px rgba(0,0,0,.6)); user-select:none; }
+.win-meta { display:flex; flex-direction:column; gap:.4rem; }
+.win-name { font-size:1rem; font-weight:600; letter-spacing:.5px; }
+.win-rarity { font-size:.65rem; letter-spacing:1px; opacity:.75; }
+.win-value { font-size:.8rem; color:var(--color-primary-accent); font-weight:600; }
+.win-actions { display:flex; gap:.75rem; flex-wrap:wrap; }
+@keyframes win-pop { 0% { transform: scale(.6) translateY(30px); opacity:0; } 100% { transform: scale(1); opacity:1; } }
+.reel-item.rarity-common { border:1px solid #2b3c52; }
+.reel-item.rarity-uncommon { border:1px solid #3a7d3a; box-shadow:0 0 0 1px rgba(58,125,58,.4) inset; }
+.reel-item.rarity-rare { border:1px solid #2f66c9; box-shadow:0 0 0 1px rgba(47,102,201,.4) inset; }
+.reel-item.rarity-mythical { border:1px solid #7b5dfd; box-shadow:0 0 0 1px rgba(123,93,253,.5) inset; }
+.reel-item.rarity-legendary { border:1px solid #c99820; box-shadow:0 0 0 1px rgba(201,152,32,.55) inset; }
+.reel-item.rarity-ancient { border:1px solid #d14d4d; box-shadow:0 0 0 1px rgba(209,77,77,.55) inset; }
+.reel-item.rarity-exceedinglyrare { border:1px solid #ff4d9c; box-shadow:0 0 0 1px rgba(255,77,156,.55) inset; }
+.reel-item.rarity-immortal { border:1px solid #3fa9f5; box-shadow:0 0 0 1px rgba(63,169,245,.55) inset; }
+.reel-item.rarity-unique { border:1px solid #ffea55; box-shadow:0 0 0 1px rgba(255,234,85,.65) inset; }
+</style>
+{% endblock %}

@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+{% block title %}Inventory{% endblock %}
+{% block nav_actions %}{% endblock %}
+{% block content %}
+<div class="stack" style="--gap:1.4rem;">
+  <h1 style="margin:0;font-size:1.15rem;">Your Inventory</h1>
+  {% if inventory %}
+  <div class="row inventory-grid">
+    {% for it in inventory %}
+      <div class="surface inventory-item">
+        <img src="{{ it.image }}" alt="{{ it.name }}">
+        <div class="inventory-item-name">{{ it.name }}</div>
+        <div class="text-dim inventory-item-meta">Value: ${{ it.value }}</div>
+        <div class="text-dim inventory-item-meta">Qty: {{ it.quantity }}</div>
+      </div>
+    {% endfor %}
+  </div>
+  {% else %}
+    <div class="text-dim">No items yet.</div>
+  {% endif %}
+</div>
+{% endblock %}

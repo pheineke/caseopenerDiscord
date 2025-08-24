@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+{% block title %}{{ profile_user.username }}'s Showcase{% endblock %}
+{% block content %}
+<div class="stack" style="--gap:1.5rem;">
+  <div class="row" style="align-items:center;gap:1rem;flex-wrap:wrap;">
+    <div style="display:flex;align-items:center;gap:.75rem;">
+      <img src="{{ avatar_url(profile_user) }}" alt="Avatar" style="width:72px;height:72px;border-radius:50%;object-fit:cover;border:2px solid #2f4761;">
+      <div class="stack" style="--gap:.3rem;">
+        <div style="font-size:1rem;font-weight:600;letter-spacing:.5px;">{{ profile_user.username }}</div>
+        <div style="font-size:.6rem;opacity:.65;letter-spacing:1px;text-transform:uppercase;">Public Showcase</div>
+      </div>
+    </div>
+    <div class="surface" style="padding:.6rem .8rem;font-size:.6rem;letter-spacing:1px;text-transform:uppercase;opacity:.75;">Inventory Value: $ {{ profile_user.inventory_total_value }}</div>
+  </div>
+  {% if showcase %}
+  <div class="row" style="flex-wrap:wrap;gap:.9rem;">
+    {% for it in showcase %}
+      <div class="surface" style="flex:0 0 160px;padding:.7rem .75rem;display:flex;flex-direction:column;align-items:center;gap:.55rem;">
+        {% if it.image %}<img src="/{{ it.image.lstrip('/') }}" alt="{{ it.name }}" style="width:90px;height:90px;object-fit:cover;border-radius:10px;">{% else %}<div style="width:90px;height:90px;border:1px dashed #2f4761;border-radius:10px;"></div>{% endif %}
+        <div style="font-size:.65rem;font-weight:600;text-align:center;line-height:1.15;">{{ it.name }}</div>
+        <div style="font-size:.55rem;opacity:.6;">{{ it.rarity }}</div>
+        <div style="font-size:.55rem;color:var(--color-primary-accent);">$ {{ it.value }}</div>
+      </div>
+    {% endfor %}
+  </div>
+  {% else %}
+    <div class="text-dim" style="font-size:.7rem;">No showcase items selected.</div>
+  {% endif %}
+</div>
+{% endblock %}

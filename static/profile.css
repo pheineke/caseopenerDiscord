@@ -1,0 +1,26 @@
+/* Page-specific styles for profile & inventory */
+
+.profile-layout { --gap: 1.75rem; }
+.profile-row { align-items: flex-start; flex-wrap: wrap; gap: 1.25rem; }
+.profile-card { flex: 1 1 280px; max-width: 340px; }
+.profile-header { gap: 1rem; align-items: center; }
+.profile-avatar { width:96px; height:96px; border-radius:18px; object-fit:cover; border:2px solid #2f4761; }
+.profile-stack { --gap: .35rem; }
+.profile-username { font-size:1.05rem; font-weight:600; letter-spacing:.5px; }
+.profile-balance-label { font-size:.7rem; text-transform:uppercase; letter-spacing:1px; }
+.profile-balance { font-size:.9rem; color:var(--color-primary-accent); font-weight:600; }
+.profile-balance span { font-size:.65rem; }
+
+.inventory-card { flex: 2 1 420px; }
+.inventory-title { margin:0 0 .9rem; font-size:.95rem; letter-spacing:.5px; }
+.inventory-grid { flex-wrap:wrap; gap:.9rem; }
+.inventory-item { padding:.6rem .65rem; flex:0 0 160px; }
+.inventory-item img { width:64px; height:64px; object-fit:cover; border-radius:var(--radius-sm); margin:0 0 .5rem; }
+.inventory-item-name { font-size:.7rem; font-weight:600; letter-spacing:.5px; }
+.inventory-item-meta { font-size:.65rem; }
+.inventory-empty { font-size:.75rem; }
+
+/* Profit / Loss comparison */
+.pl-value { font-size:.9rem; font-weight:600; }
+.pl-positive { color: var(--color-primary-accent); }
+.pl-negative { color: #d14d4d; }

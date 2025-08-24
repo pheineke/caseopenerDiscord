@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Profile{% endblock %}
+{% block head %}<link rel="stylesheet" href="{{ url_for('static', filename='profile.css') }}">{% endblock %}
+{% block nav_actions %}{% endblock %}
+{% block content %}
+<div class="stack profile-layout">
+    <div class="row profile-row">
+    <div class="surface glow profile-card" style="max-width:420px;">
+            <div class="row profile-header" style="align-items:flex-start; gap:1.5rem;">
+                <div style="display:flex; flex-direction:column; align-items:center; gap:.6rem;">
+                    <img src="{{ avatar_url(user) }}" alt="Avatar" class="profile-avatar" style="width:96px;height:96px;border-radius:50%;object-fit:cover;border:2px solid #2f4761;">
+                    <form method="post" action="{{ url_for('upload_avatar') }}" enctype="multipart/form-data" class="stack" style="--gap:.4rem; width:100%;">
+                        <input type="file" name="avatar_file" accept="image/png,image/jpeg,image/webp,image/svg+xml" style="font-size:.65rem;" required>
+                        <button class="btn btn-primary" type="submit" style="width:100%;font-size:.65rem;padding:.55rem .75rem;">Upload</button>
+                    </form>
+                </div>
+                <div class="stack profile-stack">
+                    <div class="profile-username">{{ user.username }}</div>
+                    <div class="text-dim profile-balance-label">Balance</div>
+                    <div class="profile-balance">$ {{ user.money }} <span class="text-dim">(Inv: ${{ user.inventory_total_value }})</span></div>
+                    <div>
+                        <a href="{{ url_for('public_profile_settings') }}" class="btn" style="font-size:.6rem;padding:.45rem .7rem;margin-top:.3rem;">Public Profile Settings</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="surface" style="flex:1 1 300px; max-width:420px; display:flex; flex-direction:column; gap:.9rem;">
+            <h2 style="margin:0;font-size:.8rem;letter-spacing:1px;text-transform:uppercase;opacity:.75;">Gegenüberstellung</h2>
+            <div class="row" style="flex-wrap:wrap; gap:.6rem;">
+                <div class="surface" style="flex:1 1 120px; padding:.6rem .7rem;">
+                    <div style="font-size:.55rem;letter-spacing:1px;text-transform:uppercase;opacity:.6;">Spent</div>
+                    <div style="font-size:.9rem;font-weight:600;">$ {{ user.total_spent or 0 }}</div>
+                </div>
+                <div class="surface" style="flex:1 1 120px; padding:.6rem .7rem;">
+                    <div style="font-size:.55rem;letter-spacing:1px;text-transform:uppercase;opacity:.6;">Inventory</div>
+                    <div style="font-size:.9rem;font-weight:600;">$ {{ user.inventory_total_value }}</div>
+                </div>
+                <div class="surface" style="flex:1 1 120px; padding:.6rem .7rem;">
+                    <div style="font-size:.55rem;letter-spacing:1px;text-transform:uppercase;opacity:.6;">P/L</div>
+                    {% set pl = user.inventory_total_value - (user.total_spent or 0) %}
+                    <div class="pl-value {{ 'pl-positive' if pl>=0 else 'pl-negative' }}">$ {{ pl }}</div>
+                </div>
+            </div>
+            <div style="font-size:.6rem;opacity:.6;line-height:1.4;">Shows cumulative case spending versus current inventory value and net profit / loss.</div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}{% if register %}Register{% else %}Login{% endif %}{% endblock %}
+{% block head %}<link rel="stylesheet" href="{{ url_for('static', filename='login.css') }}">{% endblock %}
+
+{% block content %}
+<div class="center auth-wrapper">
+    <div class="surface glow auth-card">
+        <h1 class="auth-title">{% if register %}Create Account{% else %}Login{% endif %}</h1>
+    <form method="post" class="stack auth-form">
+            <div>
+                <label for="username">Username</label>
+                <input type="text" id="username" name="username" required autocomplete="username">
+            </div>
+            <div>
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" required autocomplete="current-password">
+            </div>
+            <button class="btn btn-primary" type="submit">{% if register %}Register{% else %}Login{% endif %}</button>
+        </form>
+    <div class="text-dim auth-switch">
+            {% if register %}
+                Already have an account? <a href="{{ url_for('login') }}">Login</a>
+            {% else %}
+                Need an account? <a href="{{ url_for('register') }}">Register</a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

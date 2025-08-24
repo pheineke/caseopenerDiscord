@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+{% block title %}Select Case{% endblock %}
+{% block nav_actions %}{% endblock %}
+{% block content %}
+<h1 style="margin:0 0 1.5rem; font-size:1.2rem; letter-spacing:.6px;">Select a Case</h1>
+<div class="case-grid" style="--cols:5;">
+				{% for c in cases %}
+					<a class="case-item case-layout" href="{{ url_for('open_case', case_id=c.id) }}" style="text-decoration:none;">
+						<div class="case-top">
+							<div class="case-title-row">
+								<div class="case-title">{{ c.name }}</div>
+								<div class="case-price">$ {{ c.price }}</div>
+							</div>
+							<div class="case-rarity-bar" title="Rarities: {{ c.rarities|join(', ') }}"></div>
+						</div>
+						<div class="case-img-shell">
+							{% if c.image %}
+								<img src="/{{ c.image }}" alt="{{ c.name }}" class="case-img-fill">
+							{% else %}
+								<div class="case-img-placeholder text-dim" style="font-size:.65rem;">No Art</div>
+							{% endif %}
+						</div>
+					</a>
+				{% endfor %}
+</div>
+{% endblock %}

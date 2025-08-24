@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+{% block title %}Home{% endblock %}
+{% block nav_actions %}
+  {% if not session.get('user_id') %}
+    <a class="btn" href="{{ url_for('login') }}">Login</a>
+  {% endif %}
+{% endblock %}
+{% block content %}
+<div class="stack" style="--gap:1.5rem;">
+  <h1 style="margin:0;font-size:1.25rem;">Welcome{% if user %}, {{ user.username }}{% endif %}</h1>
+  {% if user %}
+  <div class="grid cols-3" style="--gap:1rem;">
+    <div class="card stat-card">
+      <div class="text-dim" style="font-size:.6rem;letter-spacing:1px;">BALANCE</div>
+      <div style="font-size:1rem;font-weight:600;">$ {{ user.money }}</div>
+    </div>
+    <div class="card stat-card">
+      <div class="text-dim" style="font-size:.6rem;letter-spacing:1px;">INVENTORY VALUE</div>
+      <div style="font-size:1rem;font-weight:600;">$ {{ inventory_value }}</div>
+    </div>
+    <div class="card stat-card">
+      <div class="text-dim" style="font-size:.6rem;letter-spacing:1px;">ITEMS OWNED</div>
+      <div style="font-size:1rem;font-weight:600;">{{ item_count }}</div>
+    </div>
+  </div>
+  <div class="card" style="display:flex;flex-direction:column;gap:.75rem;">
+    <div style="font-size:.75rem;opacity:.8;">Quick Actions</div>
+    <div style="display:flex;flex-wrap:wrap;gap:.6rem;">
+      <a class="btn btn-primary" href="{{ url_for('case_selector') }}">Open Cases</a>
+  <a class="btn" href="{{ url_for('inventory_page') }}">Inventory</a>
+    </div>
+  </div>
+  {% else %}
+    <p>Please <a href="{{ url_for('login') }}">log in</a> or <a href="{{ url_for('register') }}">register</a> to start opening cases.</p>
+  {% endif %}
+</div>
+{% endblock %}

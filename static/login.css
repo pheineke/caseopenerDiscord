@@ -1,0 +1,18 @@
+/* Page-specific styles for login & register screens */
+
+.auth-wrapper { min-height: 60vh; }
+.auth-card { width: min(420px, 100%); }
+.auth-title { margin: 0 0 1.25rem; font-size: 1.15rem; letter-spacing: .5px; }
+
+.flash-stack { --gap: .6rem; margin-bottom: 1rem; }
+.flash-error { border-color: #c23950 !important; }
+.flash-success { border-color: #3179c3 !important; }
+.flash-info { border-color: #2f4761 !important; }
+
+.auth-form { --gap: 1rem; }
+.auth-form .btn { width: 100%; }
+
+.auth-switch { margin-top: 1.1rem; font-size: .75rem; }
+
+/* Minor overrides */
+.auth-card img { display: block; }

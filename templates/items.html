@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+{% block title %}Items{% endblock %}
+{% block content %}
+<h1 style="margin:0 0 1rem; font-size:1.2rem;">Item Pool</h1>
+<div class="case-grid" style="--cols:5;">
+  {% for it in items %}
+  <div class="surface" style="padding:.75rem .7rem; display:flex; flex-direction:column; gap:.4rem;">
+    {% if it.image %}
+      <img src="/{{ it.image }}" alt="{{ it.name }}" style="width:72px; height:72px; object-fit:cover; border-radius:var(--radius-sm);">
+    {% endif %}
+    <div style="font-size:.75rem; font-weight:600; letter-spacing:.5px;">{{ it.name }}</div>
+    <div class="text-dim" style="font-size:.65rem;">Rarity: {{ it.rarity or 'n/a' }}</div>
+    <div class="text-dim" style="font-size:.65rem;">Value: ${{ it.value }}</div>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}
