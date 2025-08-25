@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+{% block title %}Friends{% endblock %}
+{% block content %}
+<div class="stack" style="--gap:1.25rem;">
+    <div class="row" style="--gap:.6rem;">
+        <a href="{{ url_for('friends') }}" class="btn btn-primary{% if request.endpoint=='friends' %} glow{% endif %}" style="font-size:.7rem;">Friends</a>
+        <a href="{{ url_for('friends_add') }}" class="btn{% if request.endpoint=='friends_add' %} btn-primary glow{% endif %}" style="font-size:.7rem;">Add</a>
+    </div>
+    <div class="surface">
+        <h2 style="margin:.2rem 0 1rem;font-size:1rem;">Your Friends</h2>
+        {% if friends %}
+        <div class="stack" style="--gap:.75rem;">
+            {% for f in friends %}
+            <div class="row" style="--gap:.9rem;align-items:center;">
+                <div style="width:40px;height:40px;border-radius:50%;overflow:hidden;border:1px solid #2f4761;background:#1d2738;box-shadow:0 0 0 1px rgba(63,169,245,.08);">
+                    <img src="{{ f.avatar or '/static/default-avatar.svg?v=4' }}" alt="avatar" style="width:100%;height:100%;object-fit:cover;">
+                </div>
+                <div style="flex:1;min-width:0;">
+                    <div style="font-size:.85rem;font-weight:600;letter-spacing:.5px;">{{ f.username }}</div>
+                    <div style="font-size:.65rem;opacity:.65;">Slug: {% if f.slug %}<a href="{{ url_for('public_profile', slug=f.slug) }}">{{ f.slug }}</a>{% else %}<em>n/a</em>{% endif %}</div>
+                </div>
+                <div style="text-align:right;font-size:.65rem;line-height:1.3;">
+                    <div>Inventory: <span class="mono">{{ f.inventory_value }}</span></div>
+                    <div>ROI: <span class="mono {% if f.roi>=0 %}pl-positive{% else %}pl-negative{% endif %}">{{ f.roi }}</span></div>
+                </div>
+            </div>
+            <div class="divider" style="margin:.2rem 0;"></div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div style="font-size:.75rem;opacity:.7;">You haven't added any friends yet. <a href="{{ url_for('friends_add') }}">Add one</a>.</div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -73,6 +73,13 @@ header.site-header {
 .nav-brand { font-weight: 600; font-size: 1.05rem; letter-spacing: .5px; background: var(--gradient-accent); -webkit-background-clip: text; color: transparent; }
 .nav-spacer { flex: 1; }
 .nav-actions { display: flex; gap: .6rem; }
+.nav-link { position:relative; font-weight:600; font-size:.82rem; letter-spacing:.6px; padding:.4rem .65rem .45rem; border-radius:var(--radius-sm); background:transparent; border:1px solid transparent; display:inline-flex; align-items:center; gap:.35rem; line-height:1; cursor:pointer; }
+.nav-link { background:linear-gradient(120deg,#7dd5ff 0%,#8f8bff 50%,#ff6fb8 100%); -webkit-background-clip:text; background-clip:text; color:transparent; }
+.nav-link::after { content:""; position:absolute; left:10%; right:10%; bottom:.15rem; height:2px; background:linear-gradient(90deg,#5dd7ff,#7b5dfd,#ff4d9c); border-radius:2px; opacity:0; transform:scaleX(.4); transform-origin:center; transition:opacity var(--transition-medium), transform var(--transition-medium); }
+.nav-link:hover::after, .nav-link:focus-visible::after { opacity:1; transform:scaleX(1); }
+.nav-link:hover { filter:brightness(1.15); }
+.nav-link:active { transform:translateY(1px); }
+.nav-link.active { text-shadow:0 0 8px rgba(125,213,255,.4),0 0 18px rgba(139,137,255,.25); }
 
 main { flex: 1; width: min(1400px, 100%); margin: 0 auto; padding: 1.75rem 1.25rem 3rem; }
 footer { text-align: center; font-size: .75rem; padding: 1.5rem 1rem; color: var(--color-text-dim); }

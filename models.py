@@ -60,6 +60,30 @@ class User(db.Model):
         """Return profit/loss (inventory value - total spent)."""
         return self.inventory_total_value - (self.total_spent or 0)
 
+
+class Friend(db.Model):
+    """Directional friend (follow) relationship.
+
+    A row means user_id has added friend_id as a friend. We keep it
+    directional to allow future features (pending requests, followers).
+    For now the UI simply shows outgoing friends the user has added.
+    """
+    __tablename__ = 'friends'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
+    friend_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    user = db.relationship('User', foreign_keys=[user_id], backref=db.backref('friends', cascade='all, delete-orphan'))
+    friend = db.relationship('User', foreign_keys=[friend_id])
+
+    __table_args__ = (
+        db.UniqueConstraint('user_id','friend_id', name='uq_user_friend'),
+    )
+
+    def __repr__(self):  # pragma: no cover simple repr
+        return f"<Friend {self.user_id}->{self.friend_id}>"
+
 class PublicShowcase(db.Model):
     __tablename__ = 'public_showcase'
     id = db.Column(db.Integer, primary_key=True)
@@ -85,3 +109,24 @@ class Item(db.Model):
 
     def __repr__(self):  # pragma: no cover simple repr
         return f"<Item {self.name} (${self.value})>"
+
+class AcquisitionHistory(db.Model):
+    """History of items acquired by users (e.g., from opening cases).
+
+    Stores one row per awarded item instance so we can show a chronological
+    feed on the profile page. Quantity is implicit (one per spin) since each
+    spin currently yields exactly one item.
+    """
+    __tablename__ = 'acquisition_history'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
+    item_id = db.Column(db.Integer, db.ForeignKey('items.id'), nullable=False, index=True)
+    case_id = db.Column(db.Integer, nullable=True, index=True)
+    case_name = db.Column(db.String(120), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    user = db.relationship('User', backref=db.backref('acquisition_events', cascade='all, delete-orphan'))
+    item = db.relationship('Item')
+
+    def __repr__(self):  # pragma: no cover simple repr
+        return f"<Acq user={self.user_id} item={self.item_id} case={self.case_id}>"

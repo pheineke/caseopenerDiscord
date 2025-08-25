@@ -14,8 +14,9 @@
 .inventory-card { flex: 2 1 420px; }
 .inventory-title { margin:0 0 .9rem; font-size:.95rem; letter-spacing:.5px; }
 .inventory-grid { flex-wrap:wrap; gap:.9rem; }
-.inventory-item { padding:.6rem .65rem; flex:0 0 160px; }
-.inventory-item img { width:64px; height:64px; object-fit:cover; border-radius:var(--radius-sm); margin:0 0 .5rem; }
+.inventory-item { padding:.6rem .65rem; flex:0 0 160px; display:flex; flex-direction:column; align-items:center; text-align:center; }
+.inventory-item img { max-width:90%; max-height:90%; object-fit:contain; image-rendering:auto; }
+.inv-img-shell { width:96px; height:96px; display:flex; align-items:center; justify-content:center; border:1px solid #2f4761; border-radius:var(--radius-sm); background:linear-gradient(145deg,#1d2738,#263347); margin:0 0 .55rem; overflow:hidden; }
 .inventory-item-name { font-size:.7rem; font-weight:600; letter-spacing:.5px; }
 .inventory-item-meta { font-size:.65rem; }
 .inventory-empty { font-size:.75rem; }

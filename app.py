@@ -1,7 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 import random, base64
 from pathlib import Path
-from models import db, User, Item, InventoryItem, PublicShowcase
+from models import db, User, Item, InventoryItem, PublicShowcase, Friend, AcquisitionHistory
 import string, secrets
 from sqlalchemy.exc import IntegrityError
 
@@ -197,19 +197,19 @@ def upload_avatar():
     file = request.files.get('avatar_file')
     if not file or file.filename == '':
         flash('No file provided', 'error')
-        return redirect(url_for('profile'))
+        return redirect(url_for('public_profile_settings'))
     # Validate extension
     allowed = {'.png','.jpg','.jpeg','.webp','.svg'}
     suffix = Path(file.filename).suffix.lower()
     if suffix not in allowed:
         flash('Unsupported file type', 'error')
-        return redirect(url_for('profile'))
+        return redirect(url_for('public_profile_settings'))
     # Size limit ~512KB
     file.seek(0,2)
     size = file.tell()
     if size > 512*1024:
         flash('File too large (max 512KB)', 'error')
-        return redirect(url_for('profile'))
+        return redirect(url_for('public_profile_settings'))
     file.seek(0)
     avatars_dir = BASE_DIR / 'static' / 'avatars'
     avatars_dir.mkdir(parents=True, exist_ok=True)
@@ -220,7 +220,7 @@ def upload_avatar():
     user.avatar = f"/static/avatars/{safe_name}"
     db.session.commit()
     flash('Avatar updated', 'success')
-    return redirect(url_for('profile'))
+    return redirect(url_for('public_profile_settings'))
 
 @app.route('/profile')
 def profile():
@@ -231,7 +231,68 @@ def profile():
     if not user:
         session.clear()
         return redirect(url_for('login'))
-    return render_template('profile.html', user=user)
+    # Recent acquisition history (latest 25)
+    history = AcquisitionHistory.query.filter_by(user_id=user.id).order_by(AcquisitionHistory.created_at.desc()).limit(25).all()
+    return render_template('profile.html', user=user, history=history)
+
+@app.route('/friends')
+def friends():
+    uid = session.get('user_id')
+    if not uid:
+        return redirect(url_for('login'))
+    user = User.query.get(uid)
+    if not user:
+        session.clear()
+        return redirect(url_for('login'))
+    # Fetch friend relationships (outgoing)
+    friend_links = Friend.query.filter_by(user_id=user.id).join(User, Friend.friend_id == User.id).all()
+    friends = []
+    for link in friend_links:
+        f = link.friend
+        friends.append({
+            'username': f.username,
+            'slug': f.public_slug,
+            'public_enabled': f.public_enabled,
+            'avatar': f.avatar,
+            'inventory_value': f.inventory_total_value,
+            'roi': f.roi_value,
+        })
+    return render_template('friends.html', friends=friends, user=user)
+
+@app.route('/friends/add', methods=['GET','POST'])
+def friends_add():
+    uid = session.get('user_id')
+    if not uid:
+        return redirect(url_for('login'))
+    user = User.query.get(uid)
+    if not user:
+        session.clear()
+        return redirect(url_for('login'))
+    if request.method == 'POST':
+        slug = request.form.get('slug','').strip().lower()
+        if not slug:
+            flash('Enter a slug', 'error')
+            return redirect(url_for('friends_add'))
+        target = User.query.filter_by(public_slug=slug, public_enabled=True).first()
+        if not target:
+            flash('No public user with that slug', 'error')
+            return redirect(url_for('friends_add'))
+        if target.id == user.id:
+            flash('You cannot add yourself', 'error')
+            return redirect(url_for('friends_add'))
+        # Prevent duplicate
+        existing = Friend.query.filter_by(user_id=user.id, friend_id=target.id).first()
+        if existing:
+            flash('Already added', 'info')
+            return redirect(url_for('friends'))
+        db.session.add(Friend(user_id=user.id, friend_id=target.id))
+        # Also add the reverse relationship if not already present
+        if not Friend.query.filter_by(user_id=target.id, friend_id=user.id).first():
+            db.session.add(Friend(user_id=target.id, friend_id=user.id))
+        db.session.commit()
+        flash(f'Added {target.username} as a friend', 'success')
+        return redirect(url_for('friends'))
+    return render_template('friends_add.html', user=user)
 
 @app.route('/profile/public', methods=['GET','POST'])
 def public_profile_settings():
@@ -243,6 +304,26 @@ def public_profile_settings():
         session.clear()
         return redirect(url_for('login'))
     if request.method == 'POST':
+        # Optional avatar file upload in unified settings form
+        file = request.files.get('avatar_file')
+        if file and file.filename:
+            allowed = {'.png','.jpg','.jpeg','.webp','.svg'}
+            suffix = Path(file.filename).suffix.lower()
+            if suffix not in allowed:
+                flash('Unsupported avatar file type', 'error')
+                return redirect(url_for('public_profile_settings'))
+            file.seek(0,2)
+            size = file.tell()
+            if size > 512*1024:
+                flash('Avatar file too large (max 512KB)', 'error')
+                return redirect(url_for('public_profile_settings'))
+            file.seek(0)
+            avatars_dir = BASE_DIR / 'static' / 'avatars'
+            avatars_dir.mkdir(parents=True, exist_ok=True)
+            safe_name = f"user_{user.id}{suffix}"
+            disk_path = avatars_dir / safe_name
+            file.save(disk_path)
+            user.avatar = f"/static/avatars/{safe_name}"
         enabled = request.form.get('public_enabled') == 'on'
         slug = request.form.get('public_slug','').strip().lower() or None
         # Basic slug validation
@@ -463,7 +544,13 @@ def api_spin(case_id: int):
         inv.quantity += 1
     else:
         db.session.add(InventoryItem(user_id=user.id, item_id=winning.id, quantity=1))
+    # Persist item award and history
     db.session.commit()
+    try:
+        db.session.add(AcquisitionHistory(user_id=user.id, item_id=winning.id, case_id=case_id, case_name=case.get('name')))
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
     # Serialize reel
     def ser(it):
         img = it.image or 'static/placeholder-item.svg'

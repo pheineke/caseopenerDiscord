@@ -14,7 +14,9 @@
             <div class="nav-spacer"></div>
                                                 <div class="nav-actions">
                                 {% if session.get('user_id') %}
-                                    <a class="btn" href="{{ url_for('case_selector') }}">Cases</a>
+                                    <a class="nav-link" href="{{ url_for('case_selector') }}">Cases</a>
+                                    <a class="nav-link" href="{{ url_for('inventory_page') }}">Inventory</a>
+                                    <a class="nav-link" href="{{ url_for('friends') }}">Friends</a>
                                 {% endif %}
                                                                 {% block nav_actions %}{% endblock %}
                                                                                                                                 {% if current_user %}
@@ -23,8 +25,6 @@
                                                                                                                                         <div class="avatar-dropdown" id="avatarDropdown">
                                                                                                                                             <div class="avatar-username">{{ current_user.username }}</div>
                                                                                                                                             <a href="{{ url_for('profile') }}">Profile</a>
-                                                                                                                                            <a href="{{ url_for('inventory_page') }}">Inventory</a>
-                                                                                                                                            <a href="{{ url_for('case_selector') }}">Cases</a>
                                                                                                                                             <a href="{{ url_for('logout') }}">Logout</a>
                                                                                                                                         </div>
                                                                                                                                     </div>

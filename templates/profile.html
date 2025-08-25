@@ -9,17 +9,13 @@
             <div class="row profile-header" style="align-items:flex-start; gap:1.5rem;">
                 <div style="display:flex; flex-direction:column; align-items:center; gap:.6rem;">
                     <img src="{{ avatar_url(user) }}" alt="Avatar" class="profile-avatar" style="width:96px;height:96px;border-radius:50%;object-fit:cover;border:2px solid #2f4761;">
-                    <form method="post" action="{{ url_for('upload_avatar') }}" enctype="multipart/form-data" class="stack" style="--gap:.4rem; width:100%;">
-                        <input type="file" name="avatar_file" accept="image/png,image/jpeg,image/webp,image/svg+xml" style="font-size:.65rem;" required>
-                        <button class="btn btn-primary" type="submit" style="width:100%;font-size:.65rem;padding:.55rem .75rem;">Upload</button>
-                    </form>
                 </div>
                 <div class="stack profile-stack">
                     <div class="profile-username">{{ user.username }}</div>
                     <div class="text-dim profile-balance-label">Balance</div>
                     <div class="profile-balance">$ {{ user.money }} <span class="text-dim">(Inv: ${{ user.inventory_total_value }})</span></div>
                     <div>
-                        <a href="{{ url_for('public_profile_settings') }}" class="btn" style="font-size:.6rem;padding:.45rem .7rem;margin-top:.3rem;">Public Profile Settings</a>
+                        <a href="{{ url_for('public_profile_settings') }}" class="btn" style="font-size:.6rem;padding:.45rem .7rem;margin-top:.3rem;">Profile Settings</a>
                     </div>
                 </div>
             </div>
@@ -43,6 +39,32 @@
             </div>
             <div style="font-size:.6rem;opacity:.6;line-height:1.4;">Shows cumulative case spending versus current inventory value and net profit / loss.</div>
         </div>
+                <div class="surface" style="flex:1 1 520px; max-width:560px; display:flex; flex-direction:column; gap:.75rem;">
+                        <h2 style="margin:0;font-size:.8rem;letter-spacing:1px;text-transform:uppercase;opacity:.75;">History</h2>
+                        {% if history %}
+                        <div class="stack" style="--gap:.4rem;max-height:420px;overflow:auto;">
+                            {% for ev in history %}
+                                <div class="row" style="align-items:flex-start;gap:.6rem;font-size:.6rem;padding:.45rem .55rem;border:1px solid #2f4761;border-radius:6px;background:#1d2738;">
+                                    <div style="flex:0 0 46px;height:46px;display:flex;align-items:center;justify-content:center;background:#223146;border:1px solid #2f4761;border-radius:5px;">
+                                        {% if ev.item and ev.item.image %}
+                                            <img src="/{{ ev.item.image.lstrip('/') }}" alt="{{ ev.item.name }}" style="max-width:100%;max-height:100%;object-fit:contain;">
+                                        {% else %}
+                                            <span style="opacity:.5;">—</span>
+                                        {% endif %}
+                                    </div>
+                                    <div class="stack" style="--gap:.2rem;flex:1;">
+                                        <div style="font-size:.65rem;font-weight:600;">{{ ev.item.name if ev.item else 'Item' }}</div>
+                                        <div class="text-dim" style="font-size:.55rem;">From case: {{ ev.case_name or ('#'+ev.case_id|string) }}</div>
+                                        <div style="font-size:.5rem;opacity:.55;">{{ ev.created_at.strftime('%Y-%m-%d %H:%M:%S') }} UTC</div>
+                                    </div>
+                                    <div style="font-size:.55rem;font-weight:600;color:var(--color-primary-accent);">${{ ev.item.value if ev.item else '?' }}</div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                            <div class="text-dim" style="font-size:.6rem;">No history yet.</div>
+                        {% endif %}
+                    </div>
     </div>
 </div>
 {% endblock %}

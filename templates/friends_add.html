@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+{% block title %}Add Friend{% endblock %}
+{% block content %}
+<div class="stack" style="--gap:1.25rem;">
+    <div class="row" style="--gap:.6rem;">
+        <a href="{{ url_for('friends') }}" class="btn{% if request.endpoint=='friends' %} btn-primary glow{% endif %}" style="font-size:.7rem;">Friends</a>
+        <a href="{{ url_for('friends_add') }}" class="btn btn-primary{% if request.endpoint=='friends_add' %} glow{% endif %}" style="font-size:.7rem;">Add</a>
+    </div>
+    <div class="surface" style="max-width:480px;">
+        <h2 style="margin:.2rem 0 1rem;font-size:1rem;">Add Friend by Public Slug</h2>
+        <form method="post" class="stack" style="--gap:1rem;">
+            <div>
+                <label for="slug">Public Slug</label>
+                <input type="text" id="slug" name="slug" placeholder="e.g. johndoe or 8charid" required>
+            </div>
+            <button type="submit" class="btn btn-primary">Add Friend</button>
+            <div style="font-size:.65rem;opacity:.6;line-height:1.3;">The user must have enabled a public profile. Slugs are 3-32 chars (a-z, 0-9, underscore, dash).</div>
+        </form>
+    </div>
+</div>
+{% endblock %}
