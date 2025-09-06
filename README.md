@@ -17,10 +17,12 @@ A Flask prototype for a case opening simulator with user accounts, SQLite persis
 - `InventoryItem`: id, user_id, item_id, quantity, created_at (acts as inventory association)
 
 ## Running
-Create / activate a Python 3.10+ environment then install Flask & SQLAlchemy:
+Create / activate a Python 3.10+ environment then install dependencies:
 
 ```bash
-pip install flask flask_sqlalchemy werkzeug
+pip install -r requirements.txt
+# optional: copy and edit env
+cp .env.example .env
 python app.py
 ```
 
@@ -46,3 +48,46 @@ Prototype only: not production hardened (no rate limiting, CSRF, input validatio
 - (DONE) Add home page: shows balance, inventory total value, item count, and quick links.
 
 - (DONE) Header nav with Home/Cases + avatar dropdown (profile, items, cases, logout).
+
+## Running as a Discord Activity (Embedded App)
+
+This app can run inside a Discord Activity iframe using the Discord Embedded App SDK.
+
+1) Create a Discord Application in the Developer Portal and enable "Embedded App" (Activities).
+2) Note the Application ID and Client Secret.
+3) Run the app with these environment variables (add to .env or export):
+
+Environment:
+- DISCORD_ACTIVITY=1
+- DISCORD_APP_ID=<your application id>
+- DISCORD_CLIENT_SECRET=<your client secret>
+
+The server sets cookies compatible with third‑party iframes (SameSite=None; Secure) and relaxes CSP for Discord domains. The client loads the SDK and performs an OAuth code flow via `/discord/exchange`.
+
+## Docker
+
+Build and run locally:
+
+```bash
+docker build -t caseopener .
+docker run --rm -p 8000:8000 \
+	--env-file .env \
+	-v "$(pwd)/app.db:/app/app.db" \
+	-v "$(pwd)/static/avatars:/app/static/avatars" \
+	caseopener
+```
+
+Or with Compose:
+
+```bash
+docker compose up --build
+```
+
+Raspberry Pi (ARM) notes:
+- The Dockerfile uses python:3.12-slim which has multi-arch manifests (arm/arm64/amd64). Building on a Pi should work out of the box.
+- If building on x86 for ARM, use Buildx: `docker buildx build --platform linux/arm64,linux/amd64 -t yourrepo/caseopener .`
+- Map the `app.db` and `static/avatars` volumes so data persists across container restarts.
+
+Notes:
+- Only minimal identify scope is requested; link your in‑app account by adding a server endpoint to create/login users from the Discord user object (see `window.__discordUser`).
+- Ensure you serve over HTTPS in production. Activities are https‑only.

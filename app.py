@@ -4,16 +4,40 @@ from pathlib import Path
 from models import db, User, Item, InventoryItem, PublicShowcase, Friend, AcquisitionHistory
 import string, secrets
 from sqlalchemy.exc import IntegrityError
+import os
+import json
+import urllib.parse
+import urllib.request
+from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).parent
 DEFAULT_AVATAR_FILE = BASE_DIR / 'static' / 'default-avatar.svg'
 DEFAULT_AVATAR_PATH = '/static/default-avatar.svg'
 DEFAULT_AVATAR_VERSION = '4'
 
+load_dotenv()  # load variables from a .env if present
+
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'dev-secret-change-me'
-app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{(BASE_DIR / 'app.db').as_posix()}"
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY') or secrets.token_hex(32)
+db_url = os.environ.get('DATABASE_URL') or os.environ.get('SQLALCHEMY_DATABASE_URI')
+if not db_url:
+    db_url = f"sqlite:///{(BASE_DIR / 'app.db').as_posix()}"
+app.config['SQLALCHEMY_DATABASE_URI'] = db_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+# Discord Activity / Embedded App configuration
+# Provide these via environment variables when deploying as a Discord Activity
+DISCORD_APP_ID = os.environ.get('DISCORD_APP_ID') or os.environ.get('DISCORD_CLIENT_ID')
+DISCORD_CLIENT_SECRET = os.environ.get('DISCORD_CLIENT_SECRET')
+app.config['DISCORD_APP_ID'] = DISCORD_APP_ID
+
+# When the app is embedded in Discord (third-party iframe), cookies must be SameSite=None; Secure
+if os.environ.get('DISCORD_ACTIVITY', '0') == '1':
+    # Requires HTTPS; Discord Activities always load via https
+    app.config['SESSION_COOKIE_SAMESITE'] = 'None'
+    app.config['SESSION_COOKIE_SECURE'] = True
+    # Optional: tell proxies this site expects HTTPS (when behind reverse proxy)
+    app.config.setdefault('PREFERRED_URL_SCHEME', 'https')
 
 db.init_app(app)
 
@@ -25,7 +49,11 @@ def inject_current_user():
         if not u or not u.avatar or 'default-avatar' in u.avatar:
             return f"{DEFAULT_AVATAR_PATH}?v={DEFAULT_AVATAR_VERSION}"
         return u.avatar if (u.avatar.startswith('http') or u.avatar.startswith('/')) else '/' + u.avatar
-    return {'current_user': user, 'avatar_url': avatar_url}
+    return {
+        'current_user': user,
+        'avatar_url': avatar_url,
+        'discord_app_id': app.config.get('DISCORD_APP_ID') or ''
+    }
 
 _DB_INITIALIZED = False
 
@@ -54,7 +82,7 @@ def ensure_db_seeded():
             db.session.commit()
     except Exception:
         db.session.rollback()
-    # Lightweight migration: add total_spent to users if missing
+    # Lightweight migration: add total_spent/public fields/discord_id to users if missing
     try:
         ucols = [c['name'] for c in db.session.execute(db.text("PRAGMA table_info(users)")).mappings().all()]
         if 'total_spent' not in ucols:
@@ -65,6 +93,14 @@ def ensure_db_seeded():
             db.session.commit()
         if 'public_slug' not in ucols:
             db.session.execute(db.text('ALTER TABLE users ADD COLUMN public_slug VARCHAR(120)'))
+            db.session.commit()
+        if 'discord_id' not in ucols:
+            db.session.execute(db.text('ALTER TABLE users ADD COLUMN discord_id VARCHAR(64)'))
+            # Add unique index if not present (SQLite lacks easy conditional create here; best effort)
+            try:
+                db.session.execute(db.text('CREATE UNIQUE INDEX IF NOT EXISTS ux_users_discord_id ON users(discord_id)'))
+            except Exception:
+                pass
             db.session.commit()
     except Exception:
         db.session.rollback()
@@ -571,8 +607,117 @@ def api_spin(case_id: int):
         'autoSeeded': auto_seeded,
     })
 
+# ---------- Discord Activity plumbing ----------
+
+@app.after_request
+def _set_embed_headers(resp):
+    """Relax CSP to allow embedding inside Discord and loading the Discord SDK.
+
+    We intentionally allow jsdelivr for the SDK; tighten as needed for your setup.
+    """
+    # Content Security Policy including frame-ancestors for Discord
+    csp = (
+        "default-src 'self' 'unsafe-inline' data: blob: https:; "
+        "img-src 'self' data: https:; "
+        "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+        "style-src 'self' 'unsafe-inline'; "
+        "connect-src 'self' https://discord.com https://*.discord.com; "
+        "frame-ancestors 'self' https://discord.com https://*.discord.com https://discordapp.com https://*.discordapp.com;"
+    )
+    # Only set if not already present (so deployments can override)
+    if not resp.headers.get('Content-Security-Policy'):
+        resp.headers['Content-Security-Policy'] = csp
+    # Useful, but optional hardening
+    resp.headers.setdefault('Referrer-Policy', 'no-referrer')
+    resp.headers.setdefault('X-Content-Type-Options', 'nosniff')
+    resp.headers.setdefault('Permissions-Policy', 'fullscreen=(self "https://discord.com" "https://*.discord.com")')
+    return resp
+
+
+@app.route('/discord/exchange', methods=['POST'])
+def discord_exchange():
+    """Exchange an OAuth2 code from the Discord Embedded App SDK for an access token.
+
+    Expects JSON body: { "code": "..." }
+    Requires env vars DISCORD_APP_ID and DISCORD_CLIENT_SECRET to be set.
+    """
+    try:
+        data = request.get_json(silent=True) or {}
+        code = data.get('code')
+        if not code:
+            return jsonify({'error': 'missing_code'}), 400
+        if not DISCORD_APP_ID or not DISCORD_CLIENT_SECRET:
+            return jsonify({'error': 'server_not_configured'}), 500
+        body = urllib.parse.urlencode({
+            'client_id': DISCORD_APP_ID,
+            'client_secret': DISCORD_CLIENT_SECRET,
+            'grant_type': 'authorization_code',
+            'code': code,
+        }).encode('utf-8')
+        req = urllib.request.Request(
+            'https://discord.com/api/oauth2/token',
+            data=body,
+            headers={'Content-Type': 'application/x-www-form-urlencoded'}
+        )
+        with urllib.request.urlopen(req, timeout=10) as r:
+            payload = json.loads(r.read().decode('utf-8'))
+        # Return only the fields the client SDK needs
+        return jsonify({
+            'access_token': payload.get('access_token'),
+            'token_type': payload.get('token_type'),
+            'expires_in': payload.get('expires_in'),
+            'scope': payload.get('scope'),
+            'refresh_token': payload.get('refresh_token'),
+        })
+    except urllib.error.HTTPError as e:
+        try:
+            err = json.loads(e.read().decode('utf-8'))
+        except Exception:
+            err = {'message': str(e)}
+        return jsonify({'error': 'exchange_failed', 'details': err}), 400
+    except Exception as e:
+        return jsonify({'error': 'server_error', 'message': str(e)}), 500
+
+
+@app.route('/auth/discord', methods=['POST'])
+def auth_discord():
+    """Create/login a local user from a Discord identify payload.
+
+    Body JSON: { id, username, discriminator?, global_name?, avatar? }
+    This trusts the embedded app context; for production, verify via token/RPC.
+    """
+    data = request.get_json(silent=True) or {}
+    did = str(data.get('id') or '').strip()
+    if not did:
+        return jsonify({'error': 'invalid_payload'}), 400
+    # Try find existing link
+    user = User.query.filter_by(discord_id=did).first()
+    if not user:
+        # Derive a username; ensure uniqueness
+        base = (data.get('global_name') or data.get('username') or f'dc_{did[:6]}').strip()
+        base = ''.join(ch for ch in base if ch.isalnum() or ch in ('_','-')) or f'dc_{did[:6]}'
+        uname = base[:32]
+        suffix = 0
+        while User.query.filter_by(username=uname).first():
+            suffix += 1
+            uname = (base[:28] + f"-{suffix}")[:32]
+        user = User(username=uname, avatar=DEFAULT_AVATAR_PATH, money=0, discord_id=did)
+        # Set a random password; not used when logging via Discord
+        user.set_password(secrets.token_hex(16))
+        db.session.add(user)
+        db.session.commit()
+    # Update avatar if provided (Discord CDN hash)
+    avatar = data.get('avatar')
+    if avatar and isinstance(avatar, str) and avatar.startswith('http'):
+        user.avatar = avatar
+        db.session.commit()
+    session['user_id'] = user.id
+    return jsonify({'ok': True, 'user': {'id': user.id, 'username': user.username}})
+
 if __name__ == '__main__':
     import os, argparse, socket
+    if not os.environ.get('SECRET_KEY'):
+        app.logger.warning('SECRET_KEY not set; using a random key for this run (sessions will reset on restart). Consider setting SECRET_KEY in your .env')
 
     def is_port_free(host: str, port: int) -> bool:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:

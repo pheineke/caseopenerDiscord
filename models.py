@@ -31,6 +31,8 @@ class User(db.Model):
     password_hash = db.Column(db.String(255), nullable=False)
     avatar = db.Column(db.String(255), nullable=True)
     money = db.Column(db.Integer, default=0, nullable=False)
+    # Optional link to a Discord account (for Embedded App login)
+    discord_id = db.Column(db.String(64), unique=True, nullable=True, index=True)
     public_enabled = db.Column(db.Boolean, default=False, nullable=False)
     public_slug = db.Column(db.String(120), unique=True, nullable=True, index=True)
     total_spent = db.Column(db.Integer, default=0, nullable=False)  # cumulative case spending

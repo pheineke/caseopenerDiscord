@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='base.css') }}">
     {% block head %}{% endblock %}
 </head>
-<body class="app-shell">
+<body class="app-shell" data-logged-in="{{ '1' if session.get('user_id') else '0' }}">
     <header class="site-header">
         <nav class="nav-bar">
                         <div class="nav-brand"><a href="{{ url_for('home') if session.get('user_id') else url_for('login') }}" style="text-decoration:none;color:inherit;">CaseOpener</a></div>
@@ -51,6 +51,63 @@
         <span class="text-dim">&copy; {{ 2025 }} CaseOpener Simulator</span>
     </footer>
     <script>
+    // Discord Embedded App SDK bootstrap (safe to load even outside Discord)
+    (function(){
+        const isInDiscord = (() => {
+            try { return window.top !== window && /discord/i.test(document.referrer); } catch { return false; }
+        })();
+        if (!isInDiscord) return;
+        const s = document.createElement('script');
+        s.src = 'https://cdn.jsdelivr.net/npm/@discord/embedded-app-sdk@^1/dist/index.global.js';
+        s.async = true;
+    s.onload = async () => {
+            try {
+                const { discordSdk } = window;
+                await discordSdk.ready();
+                // Request OAuth2 code for our app; server will exchange it for a token
+                const { code } = await discordSdk.commands.authorize({
+                    client_id: '{{ discord_app_id }}',
+                    response_type: 'code',
+                    state: crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2),
+                    prompt: 'none',
+                    scope: ['identify']
+                });
+                const resp = await fetch('/discord/exchange', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ code })
+                });
+                const token = await resp.json();
+                window.__discordToken = token;
+                // Example: fetch basic user via RPC (no network)
+                try {
+                    const me = await discordSdk.commands.getCurrentUser();
+                    window.__discordUser = me;
+                    // If user isn't logged in to the site, create/link account on the server
+                    const loggedIn = document.body.getAttribute('data-logged-in') === '1';
+                    if (!loggedIn) {
+                        await fetch('/auth/discord', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            credentials: 'include',
+                            body: JSON.stringify({
+                                id: me.id,
+                                username: me.username,
+                                global_name: me.global_name,
+                                avatar: me.avatar ? `https://cdn.discordapp.com/avatars/${me.id}/${me.avatar}.png` : undefined
+                            })
+                        });
+                        // Ensure next navigation reflects logged-in header state
+                        location.reload();
+                    }
+                } catch {}
+            } catch (err) {
+                console.warn('Discord SDK init failed', err);
+            }
+        };
+        document.head.appendChild(s);
+    })();
     (function(){
         const menu = document.getElementById('avatarMenu');
         if(!menu) return;
