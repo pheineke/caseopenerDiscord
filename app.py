@@ -150,7 +150,7 @@ def ensure_db_seeded():
                 db.session.add(Item(name=name, value=value, image=image, rarity=rarity))
         db.session.commit()
 
-@app.route('/')
+@app.route('/', methods=['GET','POST'])
 def index():
     # Show home dashboard (with stats if logged in) or redirect to login
     uid = session.get('user_id')
@@ -166,7 +166,7 @@ def index():
     item_count = sum(inv.quantity for inv in inv_items)
     return render_template('home.html', user=user, inventory_value=inventory_value, item_count=item_count)
 
-@app.route('/home')
+@app.route('/home', methods=['GET','POST'])
 def home():
     uid = session.get('user_id')
     if not uid:

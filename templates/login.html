@@ -6,7 +6,7 @@
 <div class="center auth-wrapper">
     <div class="surface glow auth-card">
         <h1 class="auth-title">{% if register %}Create Account{% else %}Login{% endif %}</h1>
-    <form method="post" class="stack auth-form">
+    <form method="post" action="{{ url_for('login') if not register else url_for('register') }}" class="stack auth-form">
             <div>
                 <label for="username">Username</label>
                 <input type="text" id="username" name="username" required autocomplete="username">
