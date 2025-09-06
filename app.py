@@ -714,6 +714,18 @@ def auth_discord():
     session['user_id'] = user.id
     return jsonify({'ok': True, 'user': {'id': user.id, 'username': user.username}})
 
+
+# ---------- Legal pages ----------
+
+@app.route('/tos')
+def tos():
+    return render_template('tos.html')
+
+
+@app.route('/privacy')
+def privacy():
+    return render_template('privacy.html')
+
 if __name__ == '__main__':
     import os, argparse, socket
     if not os.environ.get('SECRET_KEY'):
