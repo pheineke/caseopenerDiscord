@@ -57,9 +57,11 @@
     <script>
     // Discord Embedded App SDK bootstrap (safe to load even outside Discord)
     (function(){
-        const isInDiscord = (() => {
-            try { return window.top !== window && /discord/i.test(document.referrer); } catch { return false; }
-        })();
+        const urlHas = (k) => new URLSearchParams(location.search).has(k);
+        const isFramed = (() => { try { return window.top !== window; } catch { return true; } })();
+        const isDiscordRef = /discord/i.test(document.referrer || '');
+        const looksLikeActivity = urlHas('instance_id') || urlHas('platform');
+        const isInDiscord = isFramed && (isDiscordRef || looksLikeActivity);
         if (!isInDiscord) return;
         const s = document.createElement('script');
         s.src = 'https://cdn.jsdelivr.net/npm/@discord/embedded-app-sdk@^1/dist/index.global.js';
