@@ -17,9 +17,9 @@ COPY . /app
 
 # Default env suitable for container
 ENV APP_HOST=0.0.0.0 \
-    APP_PORT=8000
+    APP_PORT=5051
 
-EXPOSE 8000
+EXPOSE 5051
 
 # Persist DB/uploads by mounting volumes to /app or bind-mount specific files/dirs
 # VOLUME ["/app"]

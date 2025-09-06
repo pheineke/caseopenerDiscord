@@ -5,7 +5,7 @@ services:
     image: caseopener:latest
     container_name: caseopener
     ports:
-      - "8000:8000"
+      - "5051:5051"
     env_file:
       - .env
     # Persist DB and avatars/uploads
@@ -20,7 +20,7 @@ services:
     container_name: caseopener-cloudflared-ephemeral
     depends_on:
       - app
-    command: tunnel --no-autoupdate --url http://app:8000
+    command: tunnel --no-autoupdate --url http://app:5051
     restart: unless-stopped
     profiles: ["ephemeral"]
 
