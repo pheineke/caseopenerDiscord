@@ -13,3 +13,14 @@ services:
       - ./app.db:/app/app.db
       - ./static/avatars:/app/static/avatars
     restart: unless-stopped
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: caseopener-cloudflared
+    depends_on:
+      - app
+    environment:
+      - CLOUDFLARE_TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
+    # If CLOUDFLARE_TUNNEL_TOKEN is set, run a named tunnel; else start an ephemeral quick tunnel
+    entrypoint: ["/bin/sh","-c","if [ -n \"$CLOUDFLARE_TUNNEL_TOKEN\" ]; then exec cloudflared tunnel --no-autoupdate run --token $CLOUDFLARE_TUNNEL_TOKEN; else exec cloudflared tunnel --no-autoupdate --url http://app:8000; fi"]
+    restart: unless-stopped

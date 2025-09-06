@@ -88,6 +88,27 @@ Raspberry Pi (ARM) notes:
 - If building on x86 for ARM, use Buildx: `docker buildx build --platform linux/arm64,linux/amd64 -t yourrepo/caseopener .`
 - Map the `app.db` and `static/avatars` volumes so data persists across container restarts.
 
+### Cloudflare Tunnel (containerized)
+
+You can run a Cloudflare Tunnel as a sidecar container using the provided compose file:
+
+Ephemeral (quick) tunnel:
+```bash
+docker compose up --build
+# Check the cloudflared container logs to get the https://*.trycloudflare.com URL
+```
+
+Named tunnel with a stable hostname:
+```bash
+# 1) Create a tunnel in your Cloudflare account and copy the token
+# 2) Put it in your .env
+echo CLOUDFLARE_TUNNEL_TOKEN=xxxxx >> .env
+# 3) Bring services up
+docker compose up -d --build
+```
+
+The app will be available via the tunnel’s HTTPS URL and on localhost:8000.
+
 Notes:
 - Only minimal identify scope is requested; link your in‑app account by adding a server endpoint to create/login users from the Discord user object (see `window.__discordUser`).
 - Ensure you serve over HTTPS in production. Activities are https‑only.
