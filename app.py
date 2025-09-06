@@ -631,6 +631,25 @@ def _set_embed_headers(resp):
     resp.headers.setdefault('Referrer-Policy', 'no-referrer')
     resp.headers.setdefault('X-Content-Type-Options', 'nosniff')
     resp.headers.setdefault('Permissions-Policy', 'fullscreen=(self "https://discord.com" "https://*.discord.com")')
+    # Ensure session cookies work in third-party iframe contexts (Discord Activity)
+    try:
+        if os.environ.get('DISCORD_ACTIVITY', '0') == '1':
+            sess_name = app.config.get('SESSION_COOKIE_NAME', 'session')
+            cookies = resp.headers.getlist('Set-Cookie')
+            if cookies:
+                resp.headers.pop('Set-Cookie', None)
+                for c in cookies:
+                    if (sess_name + '=') in c:
+                        if 'SameSite=None' not in c:
+                            c += '; SameSite=None'
+                        if 'Secure' not in c:
+                            c += '; Secure'
+                        if 'Partitioned' not in c:
+                            c += '; Partitioned'
+                    resp.headers.add('Set-Cookie', c)
+    except Exception:
+        # Non-fatal; avoid breaking response if header manipulation fails
+        pass
     return resp
 
 
