@@ -94,8 +94,9 @@ You can run a Cloudflare Tunnel as a sidecar container using the provided compos
 
 Ephemeral (quick) tunnel:
 ```bash
-docker compose up --build
-# Check the cloudflared container logs to get the https://*.trycloudflare.com URL
+docker compose --profile ephemeral up --build
+# View URL:
+docker compose --profile ephemeral logs cloudflared-ephemeral | grep -E 'https://.*trycloudflare.com'
 ```
 
 Named tunnel with a stable hostname:
@@ -104,7 +105,7 @@ Named tunnel with a stable hostname:
 # 2) Put it in your .env
 echo CLOUDFLARE_TUNNEL_TOKEN=xxxxx >> .env
 # 3) Bring services up
-docker compose up -d --build
+docker compose --profile named up -d --build
 ```
 
 The app will be available via the tunnel’s HTTPS URL and on localhost:8000.

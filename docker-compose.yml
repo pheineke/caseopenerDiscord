@@ -14,13 +14,24 @@ services:
       - ./static/avatars:/app/static/avatars
     restart: unless-stopped
 
-  cloudflared:
+  # Ephemeral quick tunnel (prints https://*.trycloudflare.com in logs)
+  cloudflared-ephemeral:
+    image: cloudflare/cloudflared:latest
+    container_name: caseopener-cloudflared-ephemeral
+    depends_on:
+      - app
+    command: tunnel --no-autoupdate --url http://app:8000
+    restart: unless-stopped
+    profiles: ["ephemeral"]
+
+  # Named tunnel using a token from Cloudflare
+  cloudflared-named:
     image: cloudflare/cloudflared:latest
     container_name: caseopener-cloudflared
     depends_on:
       - app
     environment:
       - CLOUDFLARE_TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
-    # If CLOUDFLARE_TUNNEL_TOKEN is set, run a named tunnel; else start an ephemeral quick tunnel
-    entrypoint: ["/bin/sh","-c","if [ -n \"$CLOUDFLARE_TUNNEL_TOKEN\" ]; then exec cloudflared tunnel --no-autoupdate run --token $CLOUDFLARE_TUNNEL_TOKEN; else exec cloudflared tunnel --no-autoupdate --url http://app:8000; fi"]
+    command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN}
     restart: unless-stopped
+    profiles: ["named"]
